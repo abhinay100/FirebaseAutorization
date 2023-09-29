@@ -1,10 +1,12 @@
 package com.androiddevs.firebasetesting
 
+import android.net.Uri
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import android.widget.Toast
 import com.google.firebase.auth.AuthResult
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.auth.UserProfileChangeRequest
 import kotlinx.android.synthetic.main.activity_main.*
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -20,7 +22,7 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
         auth = FirebaseAuth.getInstance()
-        auth.signOut()
+      //  auth.signOut()
 
         btnRegister.setOnClickListener {
             registerUser()
@@ -28,6 +30,9 @@ class MainActivity : AppCompatActivity() {
 
         btnLogin.setOnClickListener {
             loginUser()
+        }
+        btnUpdateProfile.setOnClickListener {
+            updateProfile()
         }
     }
 
@@ -70,16 +75,43 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun checkLoggedInState() {
+        val user = auth.currentUser
         if (auth.currentUser == null) { // not logged in
             tvLoggedIn.text = "You are not logged in"
         } else {
             tvLoggedIn.text = "You are logged in!"
+            etUsername.setText(user?.displayName)
+            ivProfilePicture.setImageURI(user?.photoUrl)
         }
     }
 
     override fun onStart() {
         super.onStart()
         checkLoggedInState()
+    }
+    private fun updateProfile() {
+        auth.currentUser?.let {user ->
+            val username = etUsername.text.toString()
+            val photoURI = Uri.parse("android.resource://$packageName/${R.drawable.logo_black_square}")
+            val profileUpdates = UserProfileChangeRequest.Builder()
+                .setDisplayName(username)
+                .setPhotoUri(photoURI)
+                .build()
+
+            CoroutineScope(Dispatchers.IO).launch {
+                try {
+                    user.updateProfile(profileUpdates).await()
+                    withContext(Dispatchers.Main) {
+                        checkLoggedInState()
+                        Toast.makeText(this@MainActivity, "Successfully updated user profile", Toast.LENGTH_LONG).show()
+                    }
+                } catch (e: Exception) {
+                    withContext(Dispatchers.Main) {
+                        Toast.makeText(this@MainActivity, e.message, Toast.LENGTH_LONG).show()
+                    }
+                }
+            }
+        }
     }
 
 }
